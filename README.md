@@ -87,8 +87,187 @@ To safely stop the agent and flush any writing to the USB, simply press `Ctrl+C`
 
 ---
 
-## 📚 Further Reading
+## 📴 5. Offline / Air-Gapped Installation
+
+Run the toolkit with **zero internet connection** by pre-loading the installer:
+
+### 🐧 Linux
+1. Download `ollama-linux-amd64.tar.zst` from [ollama.com/download](https://ollama.com/download)
+2. Place it in the `installers/` directory
+3. Run `./START-Linux.sh` — it will auto-detect the local installer
+
+### 🪟 Windows
+1. Download `OllamaSetup.exe` from [ollama.com/download](https://ollama.com/download)
+2. Place it in the `installers/` directory
+3. Run `START-Windows.bat` — it will auto-detect and run it
+
+### 🍎 macOS
+1. Download `ollama-darwin.zip` from the [Ollama GitHub releases](https://github.com/ollama/ollama/releases)
+2. Place it in the `installers/` directory
+3. Run `START-Mac.command` — it will detect the local file and skip the download
+
+> **Full offline mode:** Pre-download models too by running `ollama pull <model>` on an internet-connected machine, then copying the model files to the USB's `models/` directory.
+
+---
+
+## ⚙️ 6. Configuration
+
+You can customize the toolkit behavior by editing the JSON configuration files in the `config/` folder.
+
+### Web Server Settings (`config/settings.json`)
+```json
+{
+  "default_model": "qwen2.5:0.5b",
+  "portable_mode_default": false,
+  "webui_port": 8080,
+  "ollama_host": "127.0.0.1",
+  "ollama_port": 11434
+}
+```
+
+### Agent Sandbox Settings (`config/agent.json`)
+```json
+{
+  "default_model": "qwen2.5:0.5b",
+  "agent_mode": true,
+  "enable_tools": true,
+  "enable_skills": true,
+  "shell_sandbox": true,
+  "shell_allow_list": [
+    "ls", "dir", "pwd", "echo", "cat", "python", "python3"
+  ]
+}
+```
+
+---
+
+## 🖥️ 7. System Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| **OS** | Windows 10 (22H2) / Modern Linux / macOS 12+ | Windows 11 / Ubuntu 22.04+ / macOS 13+ |
+| **RAM** | 4 GB | 16 GB+ |
+| **Disk** | 4 GB (for small models) | 50 GB+ on USB |
+| **USB** | USB 2.0 | USB 3.0 or faster |
+| **GPU** | Not required (CPU mode) | NVIDIA / AMD GPU (highly recommended) |
+
+### RAM → Model Size Guide
+
+| Your RAM | Recommended Models |
+|----------|-------------------|
+| 4 GB | `qwen2.5:0.5b`, `tinyllama` |
+| 8 GB | `phi3:mini`, `gemma2:2b`, `llama3.2` |
+| 16 GB | `mistral`, `gemma2`, `qwen2.5:7b`, `codellama` |
+| 32 GB+ | `llama3.1:70b`, `deepseek-r1` |
+
+---
+
+## 🔧 8. Troubleshooting
+
+<details>
+<summary><b>❌ "Permission Denied" on Linux</b></summary>
+
+```bash
+chmod +x START-Linux.sh preflight-check.sh
+./preflight-check.sh   # optional health check
+./START-Linux.sh
+```
+</details>
+
+<details>
+<summary><b>❌ macOS blocks START-Mac.command ("unidentified developer")</b></summary>
+
+Right-click `START-Mac.command` → **Open** → click **Open** in the dialog. This is a one-time step required by macOS Gatekeeper for scripts from the internet.
+
+Alternatively, run in Terminal:
+```bash
+chmod +x START-Mac.command
+./START-Mac.command
+```
+</details>
+
+<details>
+<summary><b>❌ Crashes / "wrong path" errors when moving USB between PCs (Windows)</b></summary>
+
+This is automatically fixed — `START-Windows.bat` wipes stale path caches on every launch. If you still see errors, delete the `data/` folder on the USB and relaunch.
+</details>
+
+<details>
+<summary><b>❌ Installation fails / No internet</b></summary>
+
+Use the offline mode: Download the Ollama installer manually and place it in the `installers/` directory. The script auto-detects it.
+</details>
+
+<details>
+<summary><b>📋 Viewing Logs</b></summary>
+
+All logs are saved in the `logs/` directory:
+- `install-YYYYMMDD-HHMMSS.log` — Installation and session logs
+- `ollama-server.log` — Ollama server output (Linux)
+- `ollama-mac.log` — macOS server output
+</details>
+
+---
+
+## 📚 9. Further Reading
 
 - [PORTABILITY_GUIDE.md](PORTABILITY_GUIDE.md) - Tips for moving the USB between different OSes safely.
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Technical deep-dive into how the Agent Sandbox and Skills work.
 - [MIGRATION.md](MIGRATION.md) - Information for users upgrading from v1 to v2.
+
+---
+
+## 🗺️ Roadmap
+
+### ✅ Completed
+- [x] macOS support (`START-Mac.command`)
+- [x] USB pre-flight health check (`preflight-check.sh`)
+- [x] XDG env vars — all app data stays on USB (Linux)
+- [x] Agentic workflow integration (Claw Edition)
+- [x] Local Python Sandbox and Skill execution
+
+### 🔜 Upcoming
+- [ ] Auto-update checker for Ollama
+- [ ] Model size estimator before download
+- [ ] Web UI reads `config/settings.json` for dynamic port config
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! To contribute:
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit your changes: `git commit -m "feat: add your feature"`
+4. Push to GitHub: `git push origin feature/your-feature`
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+You are free to use, modify, and distribute this toolkit for personal or commercial purposes.
+
+---
+
+## 🙏 Acknowledgments
+
+- [**Ollama**](https://ollama.com) — The incredible runtime that powers this entire toolkit
+- [**Open WebUI**](https://github.com/open-webui/open-webui) — Inspiration for the browser interface
+
+---
+
+<div align="center">
+
+**Made with ❤️ for the open-source AI community**
+
+*Run AI locally. Own your data. Share knowledge.*
+
+⭐ **Star this repo** if it helped you run your first local agent!
+
+[🐛 Report Bug](https://github.com/musagithub1/ollama-usb-toolkit/issues) · [💡 Request Feature](https://github.com/musagithub1/ollama-usb-toolkit/issues)
+
+</div>
