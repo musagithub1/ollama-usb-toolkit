@@ -14,6 +14,28 @@ $Host.UI.RawUI.WindowTitle = "Ollama USB Toolkit"
 $ConfigFile = Join-Path $USBPath "config\settings.json"
 $ModelsDir  = Join-Path $USBPath "models"
 $LogFile    = Join-Path $USBPath "logs\install-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
+$VersionFile = Join-Path $USBPath "VERSION"
+
+# --- Read version ---
+$ToolkitVersion = "1.2.0"
+if (Test-Path $VersionFile) {
+    $ToolkitVersion = (Get-Content $VersionFile -Raw).Trim()
+}
+
+# --- Read settings.json ---
+$DefaultModel = "phi3:mini"
+$OllamaHost   = "127.0.0.1"
+$OllamaPort   = 11434
+if (Test-Path $ConfigFile) {
+    try {
+        $settings   = Get-Content $ConfigFile -Raw | ConvertFrom-Json
+        $DefaultModel = if ($settings.default_model) { $settings.default_model } else { $DefaultModel }
+        $OllamaHost   = if ($settings.ollama_host)   { $settings.ollama_host }   else { $OllamaHost }
+        $OllamaPort   = if ($settings.ollama_port)   { $settings.ollama_port }   else { $OllamaPort }
+    } catch {
+        # settings.json malformed — use defaults
+    }
+}
 
 # Create logs directory
 $LogDir = Join-Path $USBPath "logs"
@@ -36,12 +58,13 @@ function Write-Log {
 function Show-Banner {
     Write-Host ""
     Write-Host "  ============================================================" -ForegroundColor Green
-    Write-Host "       OLLAMA USB TOOLKIT - Open-Source LLM Installer" -ForegroundColor Green
+    Write-Host "       OLLAMA USB TOOLKIT v$ToolkitVersion - LLM Installer" -ForegroundColor Green
     Write-Host "  ============================================================" -ForegroundColor Green
     Write-Host ""
-    Write-Host "  OS      : $([System.Environment]::OSVersion.VersionString)" -ForegroundColor Gray
-    Write-Host "  RAM     : $([math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)) GB" -ForegroundColor Gray
-    Write-Host "  USB Path: $USBPath" -ForegroundColor Gray
+    Write-Host "  OS        : $([System.Environment]::OSVersion.VersionString)" -ForegroundColor Gray
+    Write-Host "  RAM       : $([math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)) GB" -ForegroundColor Gray
+    Write-Host "  USB Path  : $USBPath" -ForegroundColor Gray
+    Write-Host "  Config    : default_model=$DefaultModel, port=$OllamaPort" -ForegroundColor Gray
     Write-Host ""
 }
 

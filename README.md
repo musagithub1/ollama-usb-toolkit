@@ -5,7 +5,7 @@
 ### Run Local LLMs Anywhere — Plug In, Power Up, Chat.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-brightgreen)]()
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-brightgreen)]()
 [![Ollama](https://img.shields.io/badge/Powered%20by-Ollama-orange)](https://ollama.com)
 [![Shell](https://img.shields.io/badge/Shell-Bash%20%7C%20PowerShell-blue)]()
 [![Stars](https://img.shields.io/github/stars/musagithub1/ollama-usb-toolkit?style=social)](https://github.com/musagithub1/ollama-usb-toolkit)
@@ -32,7 +32,8 @@ Whether you're a developer building AI apps, a researcher running offline experi
 
 | Feature | Description |
 |---|---|
-| 🖥️ **Cross-Platform** | Works on Windows 10/11 and all major Linux distros |
+| 🖥️ **Cross-Platform** | Works on Windows 10/11, all major Linux distros, and **macOS** |
+| 🔍 **Pre-Flight Check** | Validates USB drive health, free space & speed before installing |
 | 📦 **Automated Install** | One-command Ollama installation (online or offline) |
 | 🎛️ **Menu-Driven UI** | Interactive terminal menu — no commands to memorize |
 | 💾 **Portable Mode** | Store LLM models on the USB drive — take them anywhere |
@@ -44,25 +45,29 @@ Whether you're a developer building AI apps, a researcher running offline experi
 | 💡 **Smart Recommendations** | Suggests best models based on your RAM |
 | 📋 **Detailed Logging** | All actions logged to `logs/` for easy debugging |
 | ⚙️ **JSON Config** | Customize behavior via `config/settings.json` |
+| 🔐 **True Portability** | XDG env vars ensure all data stays on USB, nothing written to host PC |
 
 ---
 
 ## 🚀 Quick Start
 
-### Linux
+### 🐧 Linux
 
 ```bash
 # 1. Navigate to the toolkit directory (or USB mount point)
 cd /path/to/ollama-usb-toolkit
 
-# 2. Make the script executable (first time only)
-chmod +x START-Linux.sh
+# 2. Make scripts executable (first time only)
+chmod +x START-Linux.sh preflight-check.sh
 
-# 3. Launch the toolkit
+# 3. (Recommended) Run the pre-flight check first
+./preflight-check.sh
+
+# 4. Launch the toolkit
 ./START-Linux.sh
 ```
 
-### Windows
+### 🪟 Windows
 
 ```
 1. Open the toolkit folder in File Explorer
@@ -70,7 +75,19 @@ chmod +x START-Linux.sh
 3. Allow PowerShell execution if prompted
 ```
 
-> **First time?** Choose **Option 1** from the menu: it installs Ollama, lets you pick a model, and starts a chat — all in one go.
+> 💡 The Windows launcher automatically clears stale path caches — so the USB works correctly even when moved between different PCs.
+
+### 🍎 macOS
+
+```
+1. Open the toolkit folder in Finder
+2. Double-click START-Mac.command
+3. If blocked by Gatekeeper: right-click → Open → Open
+```
+
+> 💡 **First time on Mac:** The launcher auto-downloads the Ollama binary (~60 MB) directly to the USB. Nothing is installed on your Mac.
+
+> **First time on any platform?** Choose **Option 1** from the menu: it installs Ollama, lets you pick a model, and starts a chat — all in one go.
 
 ---
 
@@ -151,6 +168,8 @@ ollama-usb-toolkit/
 │
 ├── 📜 START-Linux.sh              # Main launcher for Linux (Bash)
 ├── 📜 START-Windows.bat           # Main launcher for Windows (calls PowerShell)
+├── 📜 START-Mac.command           # Main launcher for macOS (double-click to run)
+├── 📜 preflight-check.sh          # USB health check — run before installing
 │
 ├── 📂 scripts/
 │   └── install-ollama.ps1         # Full Windows installer script (PowerShell)
@@ -167,12 +186,17 @@ ollama-usb-toolkit/
 │   └── settings.json              # Toolkit configuration (model, ports, mode)
 │
 ├── 📂 installers/                 # Place offline Ollama installers here
-│   └── README.txt
+│   └── README.txt                 # Instructions for offline / air-gapped setup
 │
 ├── 📂 models/                     # LLM model storage (used in Portable Mode)
 │
+├── 📂 data/                       # App data kept on USB (XDG override target)
+│
+├── 📂 ollama_mac/                 # macOS Ollama binary (auto-created on first Mac run)
+│
 ├── 📂 logs/                       # Auto-generated log files
-│   └── install-YYYYMMDD-HHMMSS.log
+│   ├── install-YYYYMMDD-HHMMSS.log
+│   └── ollama-mac.log             # macOS server output
 │
 └── 📂 docs/
     └── MANUAL.md                  # Full user manual
@@ -307,7 +331,7 @@ By default, Ollama stores models on the host computer's internal drive. **Portab
 **Enable via the menu (Option 8) or manually:**
 
 ```bash
-# Linux
+# Linux / macOS
 export OLLAMA_MODELS="/path/to/usb/models"
 
 # Windows (PowerShell)
@@ -318,8 +342,11 @@ $env:OLLAMA_MODELS = "D:\models"
 |--------|--------|
 | ✅ **Benefit** | Models travel with you on the USB — no re-downloading |
 | ✅ **Benefit** | Saves space on the host computer |
+| ✅ **Benefit** | XDG env vars ensure app config also stays on USB (Linux) |
 | ⚠️ **Trade-off** | USB drives are slower than SSDs — use USB 3.0+ |
 | 📁 **Storage Path** | `models/` folder on the USB |
+
+> **Note:** Portable mode is set for the **current session only**. USB mount paths differ between computers (e.g. `/media/userA/USB` vs `/media/userB/USB`), so saving the path permanently would break on other machines. Re-enable it via Option 8 each time.
 
 ---
 
@@ -327,15 +354,20 @@ $env:OLLAMA_MODELS = "D:\models"
 
 Run the toolkit with **zero internet connection** by pre-loading the installer:
 
-### Linux
+### 🐧 Linux
 1. Download `ollama-linux-amd64.tar.zst` from [ollama.com/download](https://ollama.com/download)
 2. Place it in the `installers/` directory
 3. Run `./START-Linux.sh` — it will auto-detect the local installer
 
-### Windows
+### 🪟 Windows
 1. Download `OllamaSetup.exe` from [ollama.com/download](https://ollama.com/download)
 2. Place it in the `installers/` directory
 3. Run `START-Windows.bat` — it will auto-detect and run it
+
+### 🍎 macOS
+1. Download `ollama-darwin.zip` from the [Ollama GitHub releases](https://github.com/ollama/ollama/releases)
+2. Place it in the `installers/` directory
+3. Run `START-Mac.command` — it will detect the local file and skip the download
 
 > **Full offline mode:** Pre-download models too by running `ollama pull <model>` on an internet-connected machine, then copying the model files to the USB's `models/` directory.
 
@@ -369,7 +401,7 @@ Edit `config/settings.json` to customize toolkit behavior:
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
-| **OS** | Windows 10 (22H2) / Modern Linux | Windows 11 / Ubuntu 22.04+ |
+| **OS** | Windows 10 (22H2) / Modern Linux / macOS 12+ | Windows 11 / Ubuntu 22.04+ / macOS 13+ |
 | **RAM** | 4 GB | 16 GB+ |
 | **Disk** | 4 GB (for small models) | 50 GB+ on USB |
 | **USB** | USB 2.0 | USB 3.0 or faster |
@@ -393,7 +425,8 @@ Edit `config/settings.json` to customize toolkit behavior:
 <summary><b>❌ "Permission Denied" on Linux</b></summary>
 
 ```bash
-chmod +x START-Linux.sh
+chmod +x START-Linux.sh preflight-check.sh
+./preflight-check.sh   # optional health check
 ./START-Linux.sh
 ```
 </details>
@@ -405,9 +438,27 @@ PowerShell is standard on Windows 10/11. If missing, install it from the [Micros
 </details>
 
 <details>
+<summary><b>❌ macOS blocks START-Mac.command ("unidentified developer")</b></summary>
+
+Right-click `START-Mac.command` → **Open** → click **Open** in the dialog. This is a one-time step required by macOS Gatekeeper for scripts from the internet.
+
+Alternatively, run in Terminal:
+```bash
+chmod +x START-Mac.command
+./START-Mac.command
+```
+</details>
+
+<details>
+<summary><b>❌ Crashes / "wrong path" errors when moving USB between PCs (Windows)</b></summary>
+
+This is automatically fixed — `START-Windows.bat` wipes stale path caches on every launch. If you still see errors, delete the `data/` folder on the USB and relaunch.
+</details>
+
+<details>
 <summary><b>❌ Installation fails / No internet</b></summary>
 
-Use the offline mode: Download the Ollama installer manually and place it in the `installers/` directory. The script auto-detects it.
+Use the offline mode: Download the Ollama installer manually and place it in the `installers/` directory. The script auto-detects it. See [Offline Installation](#-offline--air-gapped-installation) for per-platform instructions.
 </details>
 
 <details>
@@ -421,7 +472,7 @@ Use the offline mode: Download the Ollama installer manually and place it in the
 <details>
 <summary><b>❌ Slow performance in Portable Mode</b></summary>
 
-USB 2.0 drives are slow for large model files. Use a **USB 3.0** (or faster) flash drive. Consider storing frequently-used models on the host machine and using Portable Mode only for portability.
+USB 2.0 drives are slow for large model files. Use a **USB 3.0** (or faster) flash drive. Run `./preflight-check.sh` to benchmark your drive speed before installing.
 </details>
 
 <details>
@@ -438,6 +489,7 @@ USB 2.0 drives are slow for large model files. Use a **USB 3.0** (or faster) fla
 All logs are saved in the `logs/` directory:
 - `install-YYYYMMDD-HHMMSS.log` — Installation and session logs
 - `ollama-server.log` — Ollama server output (Linux)
+- `ollama-mac.log` — macOS server output
 
 ```bash
 # View the latest log
@@ -449,12 +501,21 @@ ls -t logs/ | head -1 | xargs -I{} cat logs/{}
 
 ## 🗺️ Roadmap
 
+### ✅ Completed
+- [x] macOS support (`START-Mac.command`)
+- [x] USB pre-flight health check (`preflight-check.sh`)
+- [x] XDG env vars — all app data stays on USB (Linux)
+- [x] Windows portability cache-wipe fix
+- [x] Portable mode `.bashrc` bug fix
+
+### 🔜 Upcoming
 - [ ] Auto-update checker for Ollama
 - [ ] Model size estimator before download
 - [ ] GPU offloading configuration wizard
 - [ ] Multi-model comparison mode
 - [ ] Batch conversation export (JSON/Markdown)
 - [ ] One-command Docker Compose setup
+- [ ] Web UI reads `config/settings.json` for dynamic port config
 
 ---
 

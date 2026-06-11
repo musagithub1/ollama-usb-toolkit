@@ -369,9 +369,27 @@
         let isGenerating = false;
         let abortController = null;
         let chatHistory = [];
+        let ollamaBaseUrl = 'http://localhost:11434'; // default, overridden by config
 
         const $ = id => document.getElementById(id);
         const apiUrl = () => $('apiUrl').value.replace(/\/$/, '');
+
+        // --- Load config/settings.json ---
+        async function loadConfig() {
+            try {
+                const res = await fetch('../config/settings.json');
+                if (!res.ok) throw new Error('not found');
+                const cfg = await res.json();
+                const host = cfg.ollama_host || '127.0.0.1';
+                const port = cfg.ollama_port || 11434;
+                ollamaBaseUrl = `http://${host}:${port}`;
+            } catch {
+                // File not found or invalid — keep default localhost:11434
+                ollamaBaseUrl = 'http://localhost:11434';
+            }
+            // Set the API URL input to the loaded value
+            $('apiUrl').value = ollamaBaseUrl;
+        }
 
         // --- Temperature slider ---
         $('temperature').addEventListener('input', e => {
@@ -605,7 +623,9 @@
         }
 
         // --- Init ---
-        checkConnection().then(ok => { if (ok) loadModels(); });
+        loadConfig().then(() => {
+            checkConnection().then(ok => { if (ok) loadModels(); });
+        });
         setInterval(checkConnection, 10000);
         $('messageInput').focus();
     </script>

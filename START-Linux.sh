@@ -21,8 +21,18 @@ SCRIPTS_DIR="${USB_DIR}/scripts"
 MODELS_DIR="${USB_DIR}/models"
 CONFIG_DIR="${USB_DIR}/config"
 LOG_DIR="${USB_DIR}/logs"
+DATA_DIR="${USB_DIR}/data"
 
-mkdir -p "${LOG_DIR}"
+mkdir -p "${LOG_DIR}" "${DATA_DIR}"
+
+# --- Force all app data to stay on the USB (Linux portability) ---
+# Without these, apps like Electron/Open WebUI write to ~/.config on the host PC.
+export OLLAMA_MODELS="${MODELS_DIR}"
+export OLLAMA_ORIGINS="*"   # Allow Web UI requests from local HTTP server (fixes CORS)
+export XDG_CONFIG_HOME="${DATA_DIR}/config"
+export XDG_DATA_HOME="${DATA_DIR}/share"
+export XDG_CACHE_HOME="${DATA_DIR}/cache"
+mkdir -p "${XDG_CONFIG_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}"
 LOG_FILE="${LOG_DIR}/install-$(date +%Y%m%d-%H%M%S).log"
 
 # --- Helper Functions ---
@@ -43,9 +53,11 @@ log() {
 }
 
 show_banner() {
+    local version
+    version=$(cat "${USB_DIR}/VERSION" 2>/dev/null || echo "1.2.0")
     echo ""
     echo -e "  ${GREEN}============================================================${NC}"
-    echo -e "  ${GREEN}     OLLAMA USB TOOLKIT - Open-Source LLM Installer${NC}"
+    echo -e "  ${GREEN}     OLLAMA USB TOOLKIT v${version} - LLM Installer${NC}"
     echo -e "  ${GREEN}============================================================${NC}"
     echo ""
     echo -e "  ${GRAY}OS      : $(uname -s) $(uname -r) ($(uname -m))${NC}"
@@ -419,31 +431,21 @@ set_portable_mode() {
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
         mkdir -p "$MODELS_DIR"
 
-        # Set for current session
+        # Set for current session ONLY.
+        # NOTE: We intentionally do NOT write to ~/.bashrc because the USB mount
+        # path changes between computers (e.g. /media/userA/USB vs /media/userB/USB).
+        # Writing the absolute path to .bashrc would break on every other machine.
         export OLLAMA_MODELS="$MODELS_DIR"
 
-        # Add to shell profile for persistence
-        local shell_rc=""
-        if [ -f "$HOME/.bashrc" ]; then
-            shell_rc="$HOME/.bashrc"
-        elif [ -f "$HOME/.zshrc" ]; then
-            shell_rc="$HOME/.zshrc"
-        fi
-
-        if [ -n "$shell_rc" ]; then
-            # Remove old entry if exists
-            sed -i '/OLLAMA_MODELS.*# ollama-usb-toolkit/d' "$shell_rc" 2>/dev/null || true
-            echo "export OLLAMA_MODELS=\"$MODELS_DIR\"  # ollama-usb-toolkit" >> "$shell_rc"
-            log SUCCESS "Added OLLAMA_MODELS to $shell_rc"
-        fi
-
-        log SUCCESS "Portable mode enabled! Models will be stored at: $MODELS_DIR"
-        log INFO "For the current session, OLLAMA_MODELS is already set."
+        log SUCCESS "Portable mode enabled for this session!"
+        log INFO "Models will be stored at: $MODELS_DIR"
         echo ""
-        echo -e "  ${GRAY}To revert, remove the OLLAMA_MODELS line from your shell config${NC}"
-        echo -e "  ${GRAY}and unset the environment variable.${NC}"
+        echo -e "  ${YELLOW}⚠  IMPORTANT: Portable mode is active for this session only.${NC}"
+        echo -e "  ${GRAY}   This path is NOT saved permanently — USB mount paths differ${NC}"
+        echo -e "  ${GRAY}   between computers, so saving it would break on other PCs.${NC}"
+        echo -e "  ${GRAY}   Just re-select Option 8 each time you plug into a new PC.${NC}"
 
-        # Restart server if running to pick up new path
+        # Restart server if running so it picks up the new OLLAMA_MODELS path
         if curl -s http://localhost:11434 > /dev/null 2>&1; then
             log INFO "Restarting Ollama server to use new model path..."
             pkill -f "ollama serve" 2>/dev/null || true
@@ -462,18 +464,53 @@ install_open_webui() {
     echo -e "  ${CYAN}  OPEN WEBUI - Browser-Based Chat Interface${NC}"
     echo -e "  ${CYAN}============================================================${NC}"
     echo ""
-    echo -e "  ${WHITE}Open WebUI provides a ChatGPT-like interface for Ollama.${NC}"
-    echo ""
-    echo -e "  ${WHITE}Choose installation method:${NC}"
-    echo -e "  ${WHITE}1. Docker (recommended, if Docker is installed)${NC}"
-    echo -e "  ${WHITE}2. Python pip install${NC}"
-    echo -e "  ${WHITE}3. Skip / Go back${NC}"
+    echo -e "  ${WHITE}Choose your Web UI option:${NC}"
+    echo -e "  ${WHITE}1. Built-in Web UI (Recommended — no install needed)${NC}"
+    echo -e "     ${GRAY}Serves webui/index.html via Python's built-in HTTP server.${NC}"
+    echo -e "     ${GRAY}Required for chat to work — file:// protocol blocks the API.${NC}"
+    echo -e "  ${WHITE}2. Open WebUI via Docker (full-featured, requires Docker)${NC}"
+    echo -e "  ${WHITE}3. Open WebUI via pip (requires Python 3.11+)${NC}"
+    echo -e "  ${WHITE}0. Go back${NC}"
     echo ""
 
-    read -rp "  Select (1-3): " method
+    read -rp "  Select (0-3): " method
 
     case "$method" in
         1)
+            # Serve the built-in Web UI with Python's HTTP server
+            if ! command -v python3 &>/dev/null; then
+                log ERROR "Python 3 is not installed. Please install it first."
+                return 1
+            fi
+
+            # Find a free port (default 8080, fallback to 8081+)
+            local port=8080
+            while lsof -i :"$port" &>/dev/null 2>&1; do
+                port=$((port + 1))
+            done
+
+            # Kill any previous instance we started
+            pkill -f "python3 -m http.server.*${USB_DIR}" 2>/dev/null || true
+            sleep 0.5
+
+            log INFO "Starting built-in Web UI server on port ${port}..."
+            nohup python3 -m http.server "$port" \
+                --directory "${USB_DIR}" \
+                > "${LOG_DIR}/webui-server.log" 2>&1 &
+            local server_pid=$!
+            echo "$server_pid" > "${LOG_DIR}/webui-server.pid"
+            sleep 1
+
+            local url="http://localhost:${port}/webui/index.html"
+            log SUCCESS "Web UI is running at: ${url}"
+            echo ""
+            echo -e "  ${GREEN}Opening in browser...${NC}"
+            xdg-open "$url" 2>/dev/null || \
+                (command -v firefox &>/dev/null && firefox "$url" &) || \
+                (command -v chromium-browser &>/dev/null && chromium-browser "$url" &) || \
+                log WARN "Could not auto-open browser. Navigate to: ${url}"
+            ;;
+        2)
             if ! command -v docker &>/dev/null; then
                 log ERROR "Docker is not installed."
                 echo -e "  ${YELLOW}Install Docker: https://docs.docker.com/engine/install/${NC}"
@@ -489,7 +526,7 @@ install_open_webui() {
                 ghcr.io/open-webui/open-webui:main
             log SUCCESS "Open WebUI started! Access it at: http://localhost:3000"
             ;;
-        2)
+        3)
             if ! command -v python3 &>/dev/null && ! command -v python &>/dev/null; then
                 log ERROR "Python is not installed. Please install Python 3.11+ first."
                 return 1
