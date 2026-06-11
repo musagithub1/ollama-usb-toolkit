@@ -84,6 +84,12 @@ show_menu() {
     echo -e "  ${WHITE}│  7. System Info & GPU Check                  │${NC}"
     echo -e "  ${WHITE}│  8. Store Models on USB (Portable Mode)      │${NC}"
     echo -e "  ${WHITE}│  9. Uninstall Ollama                         │${NC}"
+    echo -e "  ${WHITE}├──────────────────────────────────────────────┤${NC}"
+    echo -e "  ${WHITE}│  ${CYAN}🦞 Claw Edition (v2.0)${WHITE}                       │${NC}"
+    echo -e "  ${WHITE}│  A. Start Claw Agent (terminal)              │${NC}"
+    echo -e "  ${WHITE}│  B. Start Claw Agent API + open Web UI       │${NC}"
+    echo -e "  ${WHITE}│  C. Doctor (validate workspace)              │${NC}"
+    echo -e "  ${WHITE}├──────────────────────────────────────────────┤${NC}"
     echo -e "  ${WHITE}│  0. Exit                                     │${NC}"
     echo -e "  ${WHITE}└──────────────────────────────────────────────┘${NC}"
     echo ""
@@ -594,7 +600,8 @@ show_banner
 running=true
 while $running; do
     show_menu
-    read -rp "  Select an option (0-9): " choice
+    read -rp "  Select an option (0-9, A/B/C): " choice
+    choice=$(echo "$choice" | tr '[:lower:]' '[:upper:]')
 
     case "$choice" in
         1)
@@ -666,6 +673,34 @@ while $running; do
             ;;
         9)
             uninstall_ollama
+            ;;
+        A)
+            log INFO "Starting Claw Agent (terminal)..."
+            if ! command -v python3 >/dev/null 2>&1; then
+                log ERROR "Python 3 is required for the Claw agent."
+            else
+                python3 "${USB_DIR}/agent/claw_agent.py" chat || true
+            fi
+            ;;
+        B)
+            log INFO "Starting Claw Agent API on http://127.0.0.1:11500 ..."
+            if ! command -v python3 >/dev/null 2>&1; then
+                log ERROR "Python 3 is required for the Claw agent."
+            else
+                # Try to open the web UI in the default browser
+                ( sleep 1 && (xdg-open "${USB_DIR}/webui/claw.html" 2>/dev/null \
+                              || open "${USB_DIR}/webui/claw.html" 2>/dev/null \
+                              || true) ) &
+                python3 "${USB_DIR}/agent/claw_agent.py" serve --port 11500 || true
+            fi
+            ;;
+        C)
+            if ! command -v python3 >/dev/null 2>&1; then
+                log ERROR "Python 3 is required for the Claw agent."
+            else
+                python3 "${USB_DIR}/agent/claw_agent.py" doctor || true
+                read -rp "  Press Enter to return to menu..." _
+            fi
             ;;
         0)
             echo ""

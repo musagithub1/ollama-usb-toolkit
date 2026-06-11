@@ -1,62 +1,94 @@
 # Changelog
 
-All notable changes to the **Ollama USB Toolkit** are documented here.
+All notable changes to **Ollama USB Toolkit** are documented here.
 
-Format: `[Version] — Date — Summary`
+## [2.0.0] — 2026-06-11 — "Claw Edition"
 
----
-
-## [1.2.0] — 2026-06-11
-
-### ✨ Added
-- **`START-Mac.command`** — Full macOS launcher. Auto-downloads Ollama Darwin binary to the USB on first run. Reads `config/settings.json` for port settings. Opens the built-in Web UI. Supports offline install via `installers/ollama-darwin.zip`.
-- **`preflight-check.sh`** — USB drive health check. Verifies write access, free disk space (warns < 4 GB, recommends 16 GB+), and benchmarks read/write speed using `dd`. Detects USB 2.0 vs USB 3.0.
-- **`CHANGELOG.md`** — This file. Version history for the project.
-- **`VERSION`** — Version number file. Read by scripts to display current version in banners.
-- **`CONTRIBUTING.md`** — Contributor guide with setup, code style, and PR instructions.
-- macOS section added to **Offline Installation** docs.
-- macOS Gatekeeper troubleshooting added to **README.md**.
-
-### 🛠️ Fixed
-- **Portable mode `.bashrc` bug** (`START-Linux.sh`) — Previously wrote the absolute USB mount path permanently to `~/.bashrc`. This broke on other PCs where the USB mounts at a different path. Now only exports `OLLAMA_MODELS` for the current session with a clear warning.
-- **Windows path portability** (`START-Windows.bat`) — Now uses `%~dp0` for all paths so the USB works on any drive letter. Auto-creates `data/`, `models/`, `logs/` folders. Passes `USB_DIR` to the PS1 installer.
-- **Windows cache-wipe fix** (`START-Windows.bat`) — Deletes stale `Cache/`, `Code Cache/`, `GPUCache/`, `config.json` on every launch. Prevents crashes when moving the USB between different Windows PCs.
-- **XDG env variables** (`START-Linux.sh`) — Added `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` pointing to `data/` on the USB. Prevents apps from writing config to the host PC's `~/.config`.
-
-### 📝 Changed
-- **README.md** platform badge updated: Linux | Windows → Linux | Windows | macOS.
-- **README.md** Quick Start section now includes macOS instructions.
-- **README.md** Roadmap split into ✅ Completed and 🔜 Upcoming sections.
-- **`install-ollama.ps1`** now reads `default_model` from `config/settings.json` to pre-select the default model in the menu.
-- **`webui/index.html`** now loads API URL from `config/settings.json` on startup, with fallback to `http://localhost:11434`.
-
----
-
-## [1.1.0] — 2026-06-10
+This is the **agent upgrade**. The toolkit is no longer just a portable
+chat front-end for Ollama — it now ships a full local AI agent inspired
+by the [OpenClaw](https://github.com/openclaw/openclaw) personal-assistant
+runtime, redesigned to run from a USB drive with **zero dependencies
+beyond Python 3.8 and a running Ollama server**.
 
 ### ✨ Added
-- Built-in Web UI (`webui/index.html`) — standalone browser chat with streaming, markdown rendering, model switcher, system prompt, temperature slider, and stop button.
-- REST API examples (`api-examples/`) — Python, JavaScript, and curl examples with zero extra dependencies.
-- `config/settings.json` — JSON config for Ollama host, port, and default model.
-- `docs/MANUAL.md` — Full user manual.
-- `installers/` directory — for placing offline Ollama installers.
-- `logs/` directory — auto-generated log files with timestamps.
-- `.gitignore` — excludes model files, logs, and OS artifacts.
 
-### 🛠️ Fixed
-- Linux and Windows scripts now both handle offline installs gracefully.
-- Ollama server startup now waits up to 15 seconds with retry logic.
+- **`agent/claw_agent.py`** — single-file embedded agent runtime.
+  Implements an OpenClaw-style loop:
+  *intake → context assembly → inference → tool dispatch → streaming
+  reply → persistence*.
+- **Workspace bootstrap files** under `workspace/`:
+  `IDENTITY.md`, `SOUL.md`, `USER.md`, `AGENTS.md`, `TOOLS.md`,
+  `MEMORY.md`, `BOOTSTRAP.md`. Auto-created on first run, user-editable.
+- **Active memory** — long-term `MEMORY.md` plus daily notes in
+  `workspace/memory/YYYY-MM-DD.md`. Loaded into every system prompt,
+  appended via the `remember` tool, and **auto-extracted** when the user
+  shares durable facts ("my name is…", "I prefer…", …).
+- **Skills system** — drop-in `skills/<name>/SKILL.md` with frontmatter.
+  Bundled skills: `web-search`, `calculator`, `file-manager`,
+  `system-info`, `code-helper`.
+- **Built-in tools** (Ollama function-calling):
+  `read_file`, `write_file`, `list_dir`, `run_shell` (sandboxed),
+  `remember`, `recall`, `current_time`, `system_info`.
+- **Sessions** — auto-saved every turn to
+  `workspace/sessions/<id>.json`, fully resumable.
+- **Doctor** — `python3 agent/claw_agent.py doctor` validates and
+  repairs the workspace + checks Ollama connectivity + lists skills.
+- **Claw Agent HTTP API** — `127.0.0.1:11500` with endpoints
+  `/agent`, `/skills`, `/memory`, `/sessions`, `/remember`, `/recall`,
+  `/health`, `/config`.
+- **`webui/claw.html`** — new agentic Web UI featuring:
+  - Sessions sidebar (resume any past session)
+  - Skills sidebar (live list of loaded skills)
+  - Tool log panel (every tool call + result)
+  - Memory viewer (live `MEMORY.md`)
+  - Agent / Chat toggle
+  - Quick-actions: Remember, Recall, Doctor, Save
+- **Launcher updates** — `START-*` scripts gain menu items
+  **A) Start Claw Agent (terminal)**, **B) Start Claw Agent API**, and
+  **C) Doctor**.
+- **`agent/start-agent.sh` + `.bat`** — one-click agent API launcher.
+- **`agent/start-chat.sh` + `.bat`** — one-click terminal agent.
+- **`docs/v2/CLAW.md`** — full v2 manual.
+
+### 🔄 Changed
+
+- `VERSION` bumped to `2.0.0`.
+- `config/settings.json` is now **complemented** by
+  `config/agent.json` (agent-specific knobs: tool calling, sandbox
+  allow-list, memory auto-extract, system prompt extras).
+- `README.md` rewritten to introduce both the v1 chat UX and the new v2
+  agent UX side-by-side.
+
+### ✅ Preserved
+
+- The original `webui/index.html` plain-chat UI is **still bundled**.
+- All v1 launcher menu items (1–9, 0) are unchanged.
+- `models/`, `data/`, `logs/`, XDG redirection — unchanged. The drive
+  remains 100% portable; nothing is written to the host PC.
+- License remains **MIT**.
+
+### 🙏 Inspiration
+
+The workspace bootstrap files, agent-loop ordering, memory file naming,
+skills format, and doctor concept are all directly inspired by the
+**OpenClaw** project (<https://github.com/openclaw/openclaw>). The
+implementation here is a clean-room, USB-targeted Python port — no
+OpenClaw code is copied. Their docs (especially `docs/concepts/agent.md`,
+`memory.md`, `agent-loop.md`) were the design north-star.
 
 ---
 
-## [1.0.0] — 2026-06-09
+## [1.2.0] — 2025
 
-### 🎉 Initial Release
-- `START-Linux.sh` — Full Bash installer and launcher for Linux with interactive TUI menu.
-- `START-Windows.bat` + `scripts/install-ollama.ps1` — Windows installer with PowerShell.
-- 11 curated models: tinyllama, phi3:mini, gemma2:2b, llama3.2, mistral, gemma2, qwen2.5, llama3.1:70b, deepseek-r1, codellama, starcoder2:3b.
-- Portable Mode (store models on USB).
-- System info and GPU detection (NVIDIA, AMD, Intel).
-- RAM-based model recommendations.
-- Open WebUI integration (Docker or pip).
-- Uninstall Ollama option.
+- Cross-platform launchers (Linux / Windows / macOS).
+- Pre-flight USB health check.
+- Curated model catalogue (11+ models).
+- Standalone browser chat UI (`webui/index.html`).
+- REST API examples (curl / Python / Node).
+- Portable mode via XDG env-var redirection.
+
+## [1.0.0] — Initial release
+
+- Bash + PowerShell installer.
+- Manual model selection.
+- Local chat against Ollama.

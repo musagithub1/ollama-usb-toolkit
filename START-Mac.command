@@ -26,6 +26,51 @@ RED='\033[0;31m'
 GRAY='\033[0;37m'
 NC='\033[0m'
 
+# ============================================================================
+#  v2.0 — pick a mode (Ollama-only, Claw Agent terminal, Claw Agent Web UI)
+# ============================================================================
+CLAW_AGENT_PY="${SCRIPT_DIR}/agent/claw_agent.py"
+CLAW_WEBUI="${SCRIPT_DIR}/webui/claw.html"
+echo ""
+echo -e "${CYAN}🦞  Ollama USB Toolkit — Claw Edition (v2.0)${NC}"
+echo ""
+echo "  Choose how to start:"
+echo "    1) Classic mode — Ollama + simple chat UI (v1)"
+echo "    A) Claw Agent (terminal)"
+echo "    B) Claw Agent API + new Web UI (recommended)"
+echo "    C) Doctor (validate workspace)"
+echo ""
+read -rp "  Select [1/A/B/C, default=1]: " mode_choice
+mode_choice=$(echo "${mode_choice:-1}" | tr '[:lower:]' '[:upper:]')
+
+if [ "$mode_choice" = "A" ]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo -e "  ${RED}Python 3 is required for Claw. Install from python.org.${NC}"; read -r; exit 1
+    fi
+    python3 "$CLAW_AGENT_PY" chat
+    exit 0
+fi
+if [ "$mode_choice" = "C" ]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo -e "  ${RED}Python 3 is required for Claw. Install from python.org.${NC}"; read -r; exit 1
+    fi
+    python3 "$CLAW_AGENT_PY" doctor
+    echo ""; read -rp "  Press Enter to exit..." _
+    exit 0
+fi
+if [ "$mode_choice" = "B" ]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo -e "  ${RED}Python 3 is required for Claw. Install from python.org.${NC}"; read -r; exit 1
+    fi
+    # Override the Web UI that gets opened later, and start the agent API
+    # (Ollama still gets started by the rest of this script below.)
+    WEBUI="$CLAW_WEBUI"
+    ( sleep 4 && python3 "$CLAW_AGENT_PY" serve --port 11500 ) &
+    CLAW_AGENT_PID=$!
+    trap 'kill "$CLAW_AGENT_PID" 2>/dev/null || true' EXIT
+fi
+# Mode 1 (or anything else) → fall through to the original v1 flow below.
+
 echo ""
 echo -e "${CYAN}==================================================="
 echo -e "     OLLAMA USB TOOLKIT - Mac Launcher"

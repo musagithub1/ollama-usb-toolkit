@@ -1,0 +1,18 @@
+{
+  "default_model": "qwen2.5:0.5b",
+  "ollama_host": "127.0.0.1",
+  "ollama_port": 11434,
+  "agent_mode": true,
+  "enable_tools": true,
+  "enable_skills": true,
+  "memory_auto_extract": true,
+  "max_tool_iterations": 6,
+  "shell_sandbox": true,
+  "shell_allow_list": [
+    "ls", "dir", "pwd", "echo", "cat", "type",
+    "head", "tail", "wc", "find", "grep", "uname",
+    "whoami", "date", "df", "du", "ps", "free",
+    "python", "python3", "pip", "node", "git"
+  ],
+  "system_prompt_extra": ""
+}

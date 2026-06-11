@@ -56,9 +56,63 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-:: Launch the PowerShell installer script
+:: -------------------------------------------------------
+:: TOP-LEVEL MENU
+:: 1 = Original Ollama installer (PowerShell)
+:: A = Claw Agent (terminal)
+:: B = Claw Agent API + Web UI
+:: C = Doctor
+:: -------------------------------------------------------
+:menu
+echo.
+echo  +----------------------------------------------+
+echo  ^|              OLLAMA USB TOOLKIT             ^|
+echo  +----------------------------------------------+
+echo  ^|  1. Run the original installer (Ollama)      ^|
+echo  ^|                                              ^|
+echo  ^|  -- Claw Edition (v2.0) --                   ^|
+echo  ^|  A. Start Claw Agent (terminal)              ^|
+echo  ^|  B. Start Claw Agent API + open Web UI       ^|
+echo  ^|  C. Doctor (validate workspace)              ^|
+echo  ^|                                              ^|
+echo  ^|  0. Exit                                     ^|
+echo  +----------------------------------------------+
+echo.
+set /p choice=  Select an option (1, A, B, C, 0): 
+if /i "%choice%"=="1" goto run_installer
+if /i "%choice%"=="A" goto claw_chat
+if /i "%choice%"=="B" goto claw_serve
+if /i "%choice%"=="C" goto claw_doctor
+if /i "%choice%"=="0" goto end
+echo  [WARN] Invalid option.
+goto menu
+
+:run_installer
 echo  [INFO] Launching installer...
 echo.
 powershell -ExecutionPolicy Bypass -File "%SCRIPTS_DIR%\install-ollama.ps1" -USBPath "%USB_DIR%"
-
 pause
+goto menu
+
+:claw_chat
+where python >nul 2>&1 && (set "PY=python") || (set "PY=py")
+%PY% "%USB_DIR%\agent\claw_agent.py" chat
+pause
+goto menu
+
+:claw_serve
+where python >nul 2>&1 && (set "PY=python") || (set "PY=py")
+start "" "%USB_DIR%\webui\claw.html"
+%PY% "%USB_DIR%\agent\claw_agent.py" serve --port 11500
+pause
+goto menu
+
+:claw_doctor
+where python >nul 2>&1 && (set "PY=python") || (set "PY=py")
+%PY% "%USB_DIR%\agent\claw_agent.py" doctor
+pause
+goto menu
+
+:end
+endlocal
+exit /b 0
