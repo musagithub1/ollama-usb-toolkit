@@ -1,5 +1,9 @@
 # Ollama USB Toolkit (v2.0.0 — Claw Edition) 🦞
 
+[![GitHub stars](https://img.shields.io/github/stars/musagithub1/ollama-usb-toolkit.svg?style=social&label=Star)](https://github.com/musagithub1/ollama-usb-toolkit)
+[![GitHub forks](https://img.shields.io/github/forks/musagithub1/ollama-usb-toolkit.svg?style=social&label=Fork)](https://github.com/musagithub1/ollama-usb-toolkit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)]()
 Welcome to the **Ollama USB Toolkit (Claw Edition)**. 
 
 This toolkit is an ultra-lightweight, single-agent runtime specifically built to fit on a USB drive. It only runs one local agent (named Claw by default). Unlike massive, multi-agent cloud frameworks, this is designed for ultimate portability, privacy, and simplicity. All data, models, and memories are stored locally in this folder, ensuring your agent travels with you wherever you plug in your drive.
@@ -68,8 +72,18 @@ START-Mac.command
 
 ### The Startup Menu
 Once you run the script, you will be greeted by a menu. 
-1. If this is your very first time running it on a new computer, select **Option 1** to quickly bootstrap the Ollama runtime.
-2. To start chatting, select **Option B (Agent API + Web UI)**. This will boot the background servers and automatically open the Agent interface in your web browser.
+
+- **Option 1 (Install Ollama + Download Model):** If this is your very first time running the toolkit on a new computer, select this. It will safely install the tiny Ollama background engine on the host machine without overwriting your USB data.
+- **Option 2 (Start Classic Chat):** Starts the traditional, raw text-generation interface without agentic tools.
+- **Option A (Start Agent API):** Boots only the background Python server on port `11500`. Useful for developers testing custom frontends.
+- **Option B (Agent API + Web UI):** The primary option! This boots the background servers and automatically opens the beautiful Agent interface in your web browser.
+- **Option C (Run Doctor):** Runs a sanity check on your environment to make sure Python, Node, and Ollama are working correctly.
+
+**Accessing the UI:**
+If your browser doesn't open automatically after selecting Option B, simply go to `http://localhost:8888/webui/claw.html` in any web browser.
+
+**Shutting Down:**
+To safely stop the agent and flush any writing to the USB, simply press `Ctrl+C` in the terminal where the script is running. Wait for the servers to exit before ejecting your USB drive!
 
 ---
 
