@@ -1,0 +1,15 @@
+{
+  "id": "chat-20260611-174343-2db705",
+  "model": "qwen2.5:0.5b",
+  "saved_at": "2026-06-11T17:43:43.038804",
+  "messages": [
+    {
+      "role": "user",
+      "content": "what is my friend name?"
+    },
+    {
+      "role": "assistant",
+      "content": "You can call me Qwen."
+    }
+  ]
+}

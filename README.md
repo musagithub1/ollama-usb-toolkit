@@ -8,6 +8,21 @@ Welcome to the **Ollama USB Toolkit (Claw Edition)**.
 
 This toolkit is an ultra-lightweight, single-agent runtime specifically built to fit on a USB drive. It only runs one local agent (named Claw by default). Unlike massive, multi-agent cloud frameworks, this is designed for ultimate portability, privacy, and simplicity. All data, models, and memories are stored locally in this folder, ensuring your agent travels with you wherever you plug in your drive.
 
+## Why Claw Instead of ChatGPT/Claude/Gemini?
+
+| Feature | ChatGPT | Claude | Claw (Local) |
+|---------|---------|--------|--------------|
+| Privacy | ❌ Cloud | ❌ Cloud | ✅ Local Only |
+| Internet Required | ✅ Yes | ✅ Yes | ❌ No |
+| Customizable Personality | ❌ No | ❌ No | ✅ Yes |
+| Add Custom Skills | ❌ No | ❌ No | ✅ Yes |
+| Works Offline | ❌ No | ❌ No | ✅ Yes |
+| Cost per Message | 💰 $$ | 💰 $$ | ✅ Free |
+| Works from USB | ❌ No | ❌ No | ✅ Yes |
+| Zero Telemetry | ❌ Tracked | ❌ Tracked | ✅ Zero |
+
+**The Trade-off:** Claw is smaller (better for local models) but fully customizable and private.
+
 ---
 
 ## 🔌 1. The USB Plug-and-Play Experience
@@ -32,6 +47,7 @@ This toolkit is specifically designed for:
 - **Offline Developers & Researchers:** People working in air-gapped environments, on airplanes, or in remote locations without reliable internet access.
 - **Students & Nomads:** Users who jump between computer labs, library PCs, or friend's laptops and want to carry their personal, highly customized AI assistant in their pocket.
 - **Tinkerers:** Anyone who wants a simple, single-agent local environment to experiment with "Agentic" capabilities (function calling, local file reading/writing, shell execution) without complex Docker setups.
+- **Skill Builders & Makers:** Those who want to create custom AI tools tailored to specific workflows without learning complex frameworks like LangChain or LlamaIndex.
 
 ---
 
@@ -44,6 +60,148 @@ The magic of the Claw Edition relies on three core pillars communicating with ea
 3. **The Frontend (Web UI):** A beautiful, static HTML/JS dashboard (`localhost:8888`) that serves as your chat interface.
 
 For a deep dive into the code and agentic loop, please read [ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
+
+## 🧠 5. Customize Your Agent & Add Skills
+
+One of Claw's most powerful features is that **you can fully customize the agent's personality, capabilities, and behavior** without touching any code.
+
+### The Agent Personality Files
+
+The agent's behavior is controlled by modular markdown files in the `agent/` directory:
+
+- **`IDENTITY.md`** — Define who Claw is. Customize the agent's name, role, expertise, and personality traits.
+- **`SOUL.md`** — Set the agent's values, communication style, and ethical guidelines.
+- **`TOOLS.md`** — The system prompt that tells Claw which tools it has access to and how to use them.
+- **`MEMORY.md`** — Long-term memory that persists across sessions. Claw learns about you and remembers conversations.
+
+### Example: Change Claw's Personality
+
+Simply edit `agent/IDENTITY.md`:
+
+```markdown
+# Agent Identity
+
+You are **Luna**, a friendly AI assistant optimized for creative writing and brainstorming.
+
+You are:
+- Imaginative and enthusiastic
+- Patient with experimental ideas
+- Focused on helping users explore creative possibilities
+- Supportive but honest in feedback
+```
+Save and restart—Luna is now your agent instead of Claw.
+
+### Skills: Extend Claw's Capabilities
+Skills are modular Python + Markdown extensions. Each skill adds a new capability without modifying the core agent.
+
+**Skill Structure:**
+
+```text
+skills/
+├── my_skill/
+│   ├── SKILL.md          # Instructions for the agent
+│   └── skill.py          # Optional: Python code executed by the agent
+```
+
+**Example: Create a "Weather" Skill**
+
+Create `skills/weather/SKILL.md`:
+```markdown
+# Weather Skill
+
+You have access to a weather tool. When asked about weather, use this skill to:
+- Get current weather for any city
+- Check temperature, humidity, wind speed
+- Provide forecasts
+
+Usage: `weather --city "New York"`
+```
+Create `skills/weather/skill.py`:
+```python
+# skill.py - Executed when Claw calls the weather skill
+import requests
+
+def get_weather(city):
+    # Your weather API call here
+    response = requests.get(f"https://api.weather.com/{city}")
+    return response.json()
+```
+Add to `config/agent.json`:
+```json
+{
+  "enabled_skills": ["weather", "calculator", "file-manager"]
+}
+```
+Restart and Claw now has weather capabilities!
+
+### Built-In Skills
+Claw comes pre-loaded with essential skills:
+
+| Skill | Purpose |
+|-------|---------|
+| `calculator` | Safe arithmetic and unit math |
+| `file-manager` | Read/write/list files in USB workspace |
+| `code-helper` | Read project files and suggest code patches |
+| `system-info` | Access machine information and timestamps |
+| `web-search` | Lightweight DuckDuckGo searches (if enabled) |
+| `memory` | Long-term memory management |
+
+### The Agentic Loop: How Skills Work
+When you ask Claw something:
+
+1. Your message → Agent API
+2. Agent API bundles it with `IDENTITY.md`, `SOUL.md`, `TOOLS.md`, and available skills
+3. Claw reads the full context and decides if it needs to use a skill
+4. If yes: Claw outputs a JSON request (e.g., `{"skill": "file-manager", "action": "read", "path": "notes.txt"}`)
+5. Agent API intercepts this, runs the skill code safely in a sandbox
+6. Result fed back to Claw, who formats a human-readable response
+7. Your answer appears in the chat
+
+All of this happens 100% offline. Nothing leaves your USB.
+
+### Security Sandbox
+Skills run in a strict sandbox controlled by `config/agent.json`:
+
+```json
+{
+  "shell_sandbox": true,
+  "shell_allow_list": ["ls", "cat", "python", "echo", "pwd"]
+}
+```
+Even if Claw tries to run `rm -rf /`, the Agent API blocks it immediately. You control exactly what code can execute.
+
+### Limitations & Best Practices
+- Skills should be read-only by default for safety
+- Keep skill Python scripts under 100 lines for speed
+- Test skills locally before adding them to USB (easier debugging)
+- Document skill usage in `SKILL.md` so Claw understands how to use it
+- Version control your customizations so you can sync across devices
+
+---
+
+## 🎓 Real-World Use Cases
+
+### 📚 Student Research Assistant
+- Customize Claw for your subject (biology, history, CS)
+- Add a skill that searches your local textbooks/PDFs
+- Carry your personalized study buddy on a USB between dorms/libraries
+
+### 🔒 Whistleblower Safe Analysis
+- Air-gapped from any network
+- Analyze sensitive documents locally without cloud exposure
+- Memory stays encrypted on USB
+
+### 🧑‍💻 Offline Coding Partner
+- Add `code-helper` skill for code review
+- Works on planes, remote sites, or during internet outages
+- Your coding patterns stay private
+
+### 🚀 Portable ML Lab
+- Download different models (Llama, Mistral, Qwen)
+- Test agentic workflows without Docker
+- All data stays on your drive
 
 ---
 
@@ -230,6 +388,11 @@ All logs are saved in the `logs/` directory:
 - [ ] Auto-update checker for Ollama
 - [ ] Model size estimator before download
 - [ ] Web UI reads `config/settings.json` for dynamic port config
+- [ ] Skill marketplace for easy discovery
+- [ ] GUI skill builder (no code required)
+- [ ] Skill template generator
+- [ ] Multi-language skill support (Python, JavaScript, Bash)
+- [ ] Skill dependency management
 
 ---
 
