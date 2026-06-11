@@ -897,6 +897,17 @@ def cmd_serve(args: argparse.Namespace) -> int:
             if self.path == "/sessions":
                 self._json(200, {"sessions": list_sessions()})
                 return
+            if self.path.startswith("/sessions/"):
+                sid = self.path.split("/")[-1]
+                f = SESSIONS_DIR / f"{sid}.json"
+                if f.exists():
+                    try:
+                        self._json(200, json.loads(f.read_text()))
+                    except Exception:
+                        self._json(500, {"error": "invalid json"})
+                else:
+                    self._json(404, {"error": "not found"})
+                return
             if self.path == "/config":
                 self._json(200, cfg)
                 return

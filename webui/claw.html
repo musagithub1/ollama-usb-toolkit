@@ -288,6 +288,31 @@ async function refreshMemory(){
   }
 }
 
+async function loadSession(sid){
+  if(isBusy) return;
+  sessionId = sid;
+  refreshSessions(); // visually select it
+  isBusy = true;
+  try {
+    const r = await fetch(AGENT_API+'/sessions/'+sid);
+    const j = await r.json();
+    chatInner.innerHTML='';
+    toolCount=0; $('toolLog').innerHTML='no tool calls yet'; $('toolCount').textContent=0;
+    chatHistory=[];
+    if(j.messages){
+      j.messages.forEach(m => {
+        if(m.role==='user' && m.content) bubble('user', m.content);
+        if(m.role==='assistant' && m.content) bubble('assistant', m.content);
+        if(m.role==='tool') pushTool({name: m.name||'tool', args: {}, result: m.content});
+        if(m.role!=='system') chatHistory.push(m);
+      });
+    }
+  } catch(e) {
+    bubble('assistant', '⚠️ Could not load session.');
+  }
+  isBusy = false;
+}
+
 async function refreshSessions(){
   try {
     const r = await fetch(AGENT_API+'/sessions');
@@ -297,7 +322,7 @@ async function refreshSessions(){
       const row = document.createElement('div');
       row.className='row'+(s.id===sessionId?' active':'');
       row.innerHTML=`<span class="dot"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.id}</span><small style="color:var(--fg-2)">${s.turns}</small>`;
-      row.onclick=()=>{ sessionId=s.id; refreshSessions(); };
+      row.onclick=()=>{ loadSession(s.id); };
       list.appendChild(row);
     });
     $('sessCount').textContent = (j.sessions||[]).length;
