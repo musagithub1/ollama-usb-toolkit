@@ -1,0 +1,14 @@
+# Logs
+logs/*.log
+
+# Models (too large for git)
+models/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp files
+*.tmp
+*.bak

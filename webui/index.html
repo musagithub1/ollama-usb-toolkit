@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ollama Chat</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #252525;
+            --bg-hover: #2a2a2a;
+            --text-primary: #e8e8e8;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666;
+            --accent: #4f9cf7;
+            --accent-hover: #3a8ae5;
+            --user-bg: #1e3a5f;
+            --assistant-bg: #1a1a1a;
+            --border: #333;
+            --success: #4caf50;
+            --error: #ef5350;
+            --code-bg: #1e1e1e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .header .logo {
+            width: 32px; height: 32px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+            transition: background 0.3s;
+        }
+        .status-dot.connected { background: var(--success); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+
+        /* --- Model Selector --- */
+        .model-selector {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .model-selector select {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+        }
+        .model-selector select:hover { border-color: var(--accent); }
+
+        .btn-icon {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
+
+        /* --- Settings Panel --- */
+        .settings-panel {
+            display: none;
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .settings-panel.visible { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+        .settings-panel label {
+            font-size: 13px; color: var(--text-secondary);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .settings-panel input[type="text"],
+        .settings-panel input[type="number"] {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            padding: 4px 8px;
+            font-size: 13px;
+            width: 100px;
+        }
+        .settings-panel input[type="range"] { width: 100px; }
+
+        /* --- Chat Area --- */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            scroll-behavior: smooth;
+        }
+        .chat-container::-webkit-scrollbar { width: 6px; }
+        .chat-container::-webkit-scrollbar-track { background: transparent; }
+        .chat-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .welcome {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        .welcome h2 { font-size: 24px; color: var(--text-secondary); margin-bottom: 8px; }
+        .welcome p { font-size: 14px; max-width: 400px; line-height: 1.6; }
+
+        .message {
+            max-width: 800px;
+            margin: 0 auto 16px;
+            display: flex;
+            gap: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message-avatar {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .message.user .message-avatar { background: var(--accent); color: white; }
+        .message.assistant .message-avatar { background: var(--bg-tertiary); color: var(--text-secondary); }
+
+        .message-content {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.7;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .message.user .message-content { background: var(--user-bg); }
+        .message.assistant .message-content { background: var(--assistant-bg); border: 1px solid var(--border); }
+
+        .message-content p { margin-bottom: 8px; }
+        .message-content p:last-child { margin-bottom: 0; }
+        .message-content strong { color: var(--accent); }
+        .message-content em { color: var(--text-secondary); }
+
+        .message-content code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+        }
+        .message-content pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            overflow-x: auto;
+            margin: 8px 0;
+            position: relative;
+        }
+        .message-content pre code {
+            background: none;
+            padding: 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 8px; right: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-muted);
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .copy-btn:hover { color: var(--text-primary); }
+
+        .message-content ul, .message-content ol {
+            padding-left: 20px;
+            margin: 8px 0;
+        }
+        .message-content li { margin-bottom: 4px; }
+        .message-content blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 12px;
+            color: var(--text-secondary);
+            margin: 8px 0;
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            gap: 4px;
+            padding: 4px 0;
+        }
+        .typing-indicator span {
+            width: 6px; height: 6px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            animation: blink 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+
+        /* --- Input Area --- */
+        .input-area {
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .input-wrapper textarea {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            padding: 12px 16px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            min-height: 48px;
+            max-height: 200px;
+            line-height: 1.5;
+            transition: border-color 0.2s;
+        }
+        .input-wrapper textarea:focus { border-color: var(--accent); }
+        .input-wrapper textarea::placeholder { color: var(--text-muted); }
+
+        .send-btn {
+            width: 48px; height: 48px;
+            background: var(--accent);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .send-btn:hover { background: var(--accent-hover); }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .stop-btn {
+            background: var(--error);
+        }
+        .stop-btn:hover { background: #d32f2f; }
+
+        .input-footer {
+            max-width: 800px;
+            margin: 8px auto 0;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        /* --- Responsive --- */
+        @media (max-width: 600px) {
+            .header { padding: 10px 14px; }
+            .chat-container { padding: 12px; }
+            .input-area { padding: 12px 14px; }
+            .message-content { padding: 10px 12px; font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">&#x1F9E0;</div>
+            <h1>Ollama Chat</h1>
+            <div class="status-dot" id="statusDot" title="Disconnected"></div>
+        </div>
+        <div class="header-right">
+            <div class="model-selector">
+                <select id="modelSelect">
+                    <option value="">Loading models...</option>
+                </select>
+                <button class="btn-icon" onclick="loadModels()" title="Refresh models">&#x21BB;</button>
+            </div>
+            <button class="btn-icon" onclick="toggleSettings()" title="Settings">&#x2699;</button>
+            <button class="btn-icon" onclick="clearChat()" title="New chat">&#x2716;</button>
+        </div>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel">
+        <label>
+            API URL:
+            <input type="text" id="apiUrl" value="http://localhost:11434" onchange="checkConnection()">
+        </label>
+        <label>
+            Temperature:
+            <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7">
+            <span id="tempValue">0.7</span>
+        </label>
+        <label>
+            System Prompt:
+            <input type="text" id="systemPrompt" value="You are a helpful assistant." style="width: 250px;">
+        </label>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="welcome" id="welcome">
+            <h2>Welcome to Ollama Chat</h2>
+            <p>Select a model above and start chatting with your local LLM. Your conversations stay private on your machine.</p>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <div class="input-wrapper">
+            <textarea id="messageInput" placeholder="Type a message... (Enter to send, Shift+Enter for new line)" rows="1"></textarea>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">&#x27A4;</button>
+        </div>
+        <div class="input-footer">
+            Running locally via Ollama &middot; Your data stays on your machine
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let isGenerating = false;
+        let abortController = null;
+        let chatHistory = [];
+
+        const $ = id => document.getElementById(id);
+        const apiUrl = () => $('apiUrl').value.replace(/\/$/, '');
+
+        // --- Temperature slider ---
+        $('temperature').addEventListener('input', e => {
+            $('tempValue').textContent = e.target.value;
+        });
+
+        // --- Auto-resize textarea ---
+        $('messageInput').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+        });
+
+        // --- Enter to send ---
+        $('messageInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!isGenerating) sendMessage();
+            }
+        });
+
+        // --- Check connection ---
+        async function checkConnection() {
+            try {
+                const res = await fetch(apiUrl(), { signal: AbortSignal.timeout(3000) });
+                $('statusDot').classList.add('connected');
+                $('statusDot').title = 'Connected';
+                return true;
+            } catch {
+                $('statusDot').classList.remove('connected');
+                $('statusDot').title = 'Disconnected';
+                return false;
+            }
+        }
+
+        // --- Load models ---
+        async function loadModels() {
+            const sel = $('modelSelect');
+            sel.innerHTML = '<option value="">Loading...</option>';
+            try {
+                const res = await fetch(`${apiUrl()}/api/tags`);
+                const data = await res.json();
+                sel.innerHTML = '';
+                if (data.models && data.models.length > 0) {
+                    data.models.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.name;
+                        const sizeGB = (m.size / 1e9).toFixed(1);
+                        opt.textContent = `${m.name} (${sizeGB}GB)`;
+                        sel.appendChild(opt);
+                    });
+                } else {
+                    sel.innerHTML = '<option value="">No models found</option>';
+                }
+            } catch {
+                sel.innerHTML = '<option value="">Cannot connect to Ollama</option>';
+            }
+        }
+
+        // --- Render markdown (simple) ---
+        function renderMarkdown(text) {
+            let html = text
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                // Code blocks
+                .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+                    const id = 'code_' + Math.random().toString(36).substr(2, 6);
+                    return `<pre><code class="lang-${lang}">${code.trim()}</code><button class="copy-btn" onclick="copyCode('${id}')">Copy</button><textarea id="${id}" style="display:none">${code.trim()}</textarea></pre>`;
+                })
+                // Inline code
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                // Bold
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                // Italic
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                // Blockquote
+                .replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>')
+                // Unordered list
+                .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+                // Ordered list
+                .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+                // Headings
+                .replace(/^### (.+)$/gm, '<strong>$1</strong>')
+                .replace(/^## (.+)$/gm, '<strong>$1</strong>')
+                .replace(/^# (.+)$/gm, '<strong>$1</strong>')
+                // Line breaks
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+
+            // Wrap lists
+            html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+            return `<p>${html}</p>`;
+        }
+
+        function copyCode(id) {
+            const textarea = document.getElementById(id);
+            if (textarea) {
+                navigator.clipboard.writeText(textarea.value);
+            }
+        }
+
+        // --- Add message to chat ---
+        function addMessage(role, content, isStreaming = false) {
+            $('welcome').style.display = 'none';
+            const container = $('chatContainer');
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+
+            const avatar = role === 'user' ? '&#x1F464;' : '&#x1F916;';
+            const renderedContent = isStreaming ? '<div class="typing-indicator"><span></span><span></span><span></span></div>' : renderMarkdown(content);
+
+            div.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-content">${renderedContent}</div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div;
+        }
+
+        function updateMessage(div, content) {
+            const contentEl = div.querySelector('.message-content');
+            contentEl.innerHTML = renderMarkdown(content);
+            $('chatContainer').scrollTop = $('chatContainer').scrollHeight;
+        }
+
+        // --- Send message ---
+        async function sendMessage() {
+            const input = $('messageInput');
+            const text = input.value.trim();
+            if (!text || isGenerating) return;
+
+            const model = $('modelSelect').value;
+            if (!model) { alert('Please select a model first.'); return; }
+
+            // Add user message
+            addMessage('user', text);
+            chatHistory.push({ role: 'user', content: text });
+
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Show typing
+            const assistantDiv = addMessage('assistant', '', true);
+            isGenerating = true;
+            $('sendBtn').innerHTML = '&#x25A0;';
+            $('sendBtn').classList.add('stop-btn');
+
+            abortController = new AbortController();
+
+            try {
+                const messages = [];
+                const sysPrompt = $('systemPrompt').value.trim();
+                if (sysPrompt) messages.push({ role: 'system', content: sysPrompt });
+                messages.push(...chatHistory);
+
+                const res = await fetch(`${apiUrl()}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: messages,
+                        stream: true,
+                        options: {
+                            temperature: parseFloat($('temperature').value)
+                        }
+                    }),
+                    signal: abortController.signal
+                });
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n').filter(l => l.trim());
+
+                    for (const line of lines) {
+                        try {
+                            const json = JSON.parse(line);
+                            if (json.message && json.message.content) {
+                                fullResponse += json.message.content;
+                                updateMessage(assistantDiv, fullResponse);
+                            }
+                        } catch {}
+                    }
+                }
+
+                chatHistory.push({ role: 'assistant', content: fullResponse });
+
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    const contentEl = assistantDiv.querySelector('.message-content');
+                    if (contentEl.querySelector('.typing-indicator')) {
+                        updateMessage(assistantDiv, '*Generation stopped.*');
+                    }
+                } else {
+                    updateMessage(assistantDiv, `*Error: ${err.message}. Make sure Ollama is running.*`);
+                }
+            }
+
+            isGenerating = false;
+            abortController = null;
+            $('sendBtn').innerHTML = '&#x27A4;';
+            $('sendBtn').classList.remove('stop-btn');
+            input.focus();
+        }
+
+        // --- Stop generation ---
+        $('sendBtn').addEventListener('click', function() {
+            if (isGenerating && abortController) {
+                abortController.abort();
+            }
+        });
+
+        // --- Toggle settings ---
+        function toggleSettings() {
+            $('settingsPanel').classList.toggle('visible');
+        }
+
+        // --- Clear chat ---
+        function clearChat() {
+            chatHistory = [];
+            $('chatContainer').innerHTML = `
+                <div class="welcome" id="welcome">
+                    <h2>Welcome to Ollama Chat</h2>
+                    <p>Select a model above and start chatting with your local LLM. Your conversations stay private on your machine.</p>
+                </div>`;
+        }
+
+        // --- Init ---
+        checkConnection().then(ok => { if (ok) loadModels(); });
+        setInterval(checkConnection, 10000);
+        $('messageInput').focus();
+    </script>
+</body>
+</html>
