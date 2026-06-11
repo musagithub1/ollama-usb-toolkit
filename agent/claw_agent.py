@@ -36,6 +36,7 @@ import sys
 import textwrap
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
@@ -609,8 +610,8 @@ def maybe_extract_memory(user_text: str) -> str | None:
 # Session persistence
 # ---------------------------------------------------------------------------
 
-def new_session_id() -> str:
-    return dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
+def new_session_id(mode: str = "agent") -> str:
+    return f"{mode}-" + dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
 
 
 def save_session(session_id: str, messages: list[dict[str, Any]],
@@ -635,8 +636,9 @@ def load_session(session_id: str) -> dict[str, Any] | None:
         return None
 
 
-def list_sessions(limit: int = 20) -> list[dict[str, Any]]:
-    files = sorted(SESSIONS_DIR.glob("*.json"), reverse=True)[:limit]
+def list_sessions(limit: int = 20, mode: str | None = None) -> list[dict[str, Any]]:
+    pattern = f"{mode}-*.json" if mode else "*.json"
+    files = sorted(SESSIONS_DIR.glob(pattern), reverse=True)[:limit]
     out: list[dict[str, Any]] = []
     for f in files:
         try:
@@ -883,22 +885,27 @@ def cmd_serve(args: argparse.Namespace) -> int:
             self._json(200, {"ok": True})
 
         def do_GET(self) -> None:  # noqa: N802
-            if self.path == "/health":
+            parsed = urllib.parse.urlparse(self.path)
+            path = parsed.path
+            query = urllib.parse.parse_qs(parsed.query)
+
+            if path == "/health":
                 self._json(200, {"ok": True, "ollama": client.ping(),
                                   "version": "2.0.0"})
                 return
-            if self.path == "/skills":
+            if path == "/skills":
                 self._json(200, {"skills": load_skills()})
                 return
-            if self.path == "/memory":
+            if path == "/memory":
                 self._json(200, {"memory": (WORKSPACE/"MEMORY.md").read_text(),
                                   "user": (WORKSPACE/"USER.md").read_text()})
                 return
-            if self.path == "/sessions":
-                self._json(200, {"sessions": list_sessions()})
+            if path == "/sessions":
+                mode = query.get("mode", [None])[0]
+                self._json(200, {"sessions": list_sessions(mode=mode)})
                 return
-            if self.path.startswith("/sessions/"):
-                sid = self.path.split("/")[-1]
+            if path.startswith("/sessions/"):
+                sid = path.split("/")[-1]
                 f = SESSIONS_DIR / f"{sid}.json"
                 if f.exists():
                     try:
@@ -908,7 +915,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
                 else:
                     self._json(404, {"error": "not found"})
                 return
-            if self.path == "/config":
+            if path == "/config":
                 self._json(200, cfg)
                 return
             self._json(404, {"error": "not found"})
@@ -921,10 +928,18 @@ def cmd_serve(args: argparse.Namespace) -> int:
             except Exception:
                 body = {}
 
+            if self.path == "/sessions_save":
+                sid = body.get("id") or new_session_id("chat")
+                model_used = body.get("model", cfg["default_model"])
+                msgs = body.get("messages", [])
+                save_session(sid, msgs, model_used)
+                self._json(200, {"ok": True, "id": sid})
+                return
+
             if self.path == "/agent":
                 model = body.get("model", cfg["default_model"])
                 user = body.get("message", "")
-                sid = body.get("session_id") or new_session_id()
+                sid = body.get("session_id") or new_session_id("agent")
                 sess = load_session(sid)
                 if sess:
                     messages = sess["messages"]

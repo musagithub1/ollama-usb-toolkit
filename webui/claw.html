@@ -315,7 +315,8 @@ async function loadSession(sid){
 
 async function refreshSessions(){
   try {
-    const r = await fetch(AGENT_API+'/sessions');
+    const mode = agentMode ? 'agent' : 'chat';
+    const r = await fetch(AGENT_API+'/sessions?mode=' + mode);
     const j = await r.json();
     const list = $('sessionList'); list.innerHTML='';
     (j.sessions||[]).forEach(s=>{
@@ -382,6 +383,15 @@ async function sendChat(text){
       $('chat').scrollTop = $('chat').scrollHeight;
     }
     chatHistory.push({role:'assistant',content:acc});
+    try {
+      const sr = await fetch(AGENT_API+'/sessions_save', {
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id:sessionId, model:model, messages:chatHistory})
+      });
+      const sj = await sr.json();
+      if(sj.id) sessionId = sj.id;
+      refreshSessions();
+    } catch(se){}
   } catch(e){
     reply.querySelector('.body').innerHTML='⚠️ Ollama unreachable.';
   } finally { isBusy=false; }
@@ -397,9 +407,11 @@ $('input').addEventListener('keydown',e=>{
   if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('send').click(); }
 });
 $('modeAgent').onclick = ()=>{ agentMode=true;
-  $('modeAgent').classList.add('on');$('modeChat').classList.remove('on');$('modeBadge').textContent='Agent';};
+  $('modeAgent').classList.add('on');$('modeChat').classList.remove('on');$('modeBadge').textContent='Agent';
+  $('newSession').click(); refreshSessions(); };
 $('modeChat').onclick = ()=>{ agentMode=false;
-  $('modeChat').classList.add('on');$('modeAgent').classList.remove('on');$('modeBadge').textContent='Chat';};
+  $('modeChat').classList.add('on');$('modeAgent').classList.remove('on');$('modeBadge').textContent='Chat';
+  $('newSession').click(); refreshSessions(); };
 $('modelSelect').onchange = e => { model = e.target.value; };
 $('newSession').onclick = ()=>{ sessionId=null; chatHistory=[]; chatInner.innerHTML=`
   <div class="empty-state"><h2>🆕 New session</h2><p>Start fresh.</p></div>`; toolCount=0;$('toolCount').textContent=0;$('toolLog').innerHTML='no tool calls yet';};
